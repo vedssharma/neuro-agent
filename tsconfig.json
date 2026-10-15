@@ -1,0 +1,11 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/core" },
+    { "path": "packages/memory" },
+    { "path": "packages/providers" },
+    { "path": "packages/tools" },
+    { "path": "packages/eval" },
+    { "path": "packages/cli" }
+  ]
+}

@@ -36,7 +36,7 @@ The neuroscience behind each decision is in [`docs/NEUROSCIENCE.md`](docs/NEUROS
 
 ---
 
-## Phase 0 — Foundations & project setup
+## Phase 0 — Foundations & project setup ✅ (done)
 
 **Goal:** A clean, contributor-friendly TypeScript monorepo.
 
@@ -50,7 +50,7 @@ The neuroscience behind each decision is in [`docs/NEUROSCIENCE.md`](docs/NEUROS
 
 ## Phase 1 — A minimal, conventional agent loop (the baseline)
 
-**Goal:** A working agent *without* brain features — the control group every later phase must beat.
+**Goal:** A working agent _without_ brain features — the control group every later phase must beat.
 
 - Provider abstraction (Anthropic first; OpenAI-compatible and local/Ollama adapters) with streaming and tool-call normalization.
 - Agent loop: perceive → think → act → observe, with typed events and cancellation.
@@ -77,7 +77,7 @@ The neuroscience behind each decision is in [`docs/NEUROSCIENCE.md`](docs/NEUROS
 
 **Goal:** Treat the context window as a small, curated working memory.
 
-- **Context compiler:** assembles each prompt from slots — system/identity, *goal stack*, *focus region* (≈4 active chunks), *activated region* (recently retrieved items), and an optional sensory tail of raw recent events.
+- **Context compiler:** assembles each prompt from slots — system/identity, _goal stack_, _focus region_ (≈4 active chunks), _activated region_ (recently retrieved items), and an optional sensory tail of raw recent events.
 - **Chunking:** raw turns and tool outputs are compressed into typed chunks (summary + pointer to the full artifact) rather than retained verbatim.
 - **Attention gate:** an admit/evict policy scoring candidates by relevance to the current goal, recency, and salience; configurable token budget per region.
 - **Sensory buffer:** large, fast-decaying raw buffer (tool outputs, file contents) from which only attended items are promoted.
@@ -91,7 +91,7 @@ The neuroscience behind each decision is in [`docs/NEUROSCIENCE.md`](docs/NEUROS
 **Goal:** Two long-term stores with different speeds and write policies (Complementary Learning Systems).
 
 - **Storage layer:** SQLite (+ FTS5) with a pluggable vector index; everything inspectable on disk (JSONL/Markdown export). Interfaces so Postgres/other backends can follow.
-- **Episodic store ("hippocampus"):** fast, append-mostly writes of *events* — what happened, when, where (project/file/session), with whom, outcome — each with a compact *index* pointing to full artifacts. **Pattern-separated writes:** store distinguishing context so near-duplicate episodes stay distinct.
+- **Episodic store ("hippocampus"):** fast, append-mostly writes of _events_ — what happened, when, where (project/file/session), with whom, outcome — each with a compact _index_ pointing to full artifacts. **Pattern-separated writes:** store distinguishing context so near-duplicate episodes stay distinct.
 - **Semantic store ("neocortex"):** facts, entities, preferences, and schemas as a knowledge graph with provenance links back to supporting episodes.
 - **Encoding pipeline:** event → candidate memory → salience gate (Phase 6 deepens this) → write.
 - **Retrieval v1:** hybrid lexical + embedding + graph-neighborhood search, returning chunks into the activated region.
@@ -113,7 +113,7 @@ The neuroscience behind each decision is in [`docs/NEUROSCIENCE.md`](docs/NEUROS
 
 ## Phase 6 — Salience, emotion & prediction error (the amygdala gate)
 
-**Goal:** Decide *what is worth remembering*.
+**Goal:** Decide _what is worth remembering_.
 
 - **Salience scorer** at encoding combining: surprise (prediction error against the agent's expectation), task relevance, outcome value (success/failure, tests passing, user approval/correction), explicit user emphasis ("remember this"), and novelty vs. existing memory.
 - **Expectation modeling:** the agent predicts outcomes of actions; mismatches are tagged as high-value learning events.
@@ -142,8 +142,8 @@ The neuroscience behind each decision is in [`docs/NEUROSCIENCE.md`](docs/NEUROS
 
 **Goal:** Keep memory healthy over months of use.
 
-- **Memory strength model:** each memory has strength that decays (Ebbinghaus-style, per-memory rate), is boosted by retrieval and *spaced* reuse, and is modulated by salience.
-- **Active forgetting:** below-threshold memories become *inaccessible* (archived, de-indexed from default search) but recoverable with a strong cue — not deleted.
+- **Memory strength model:** each memory has strength that decays (Ebbinghaus-style, per-memory rate), is boosted by retrieval and _spaced_ reuse, and is modulated by salience.
+- **Active forgetting:** below-threshold memories become _inaccessible_ (archived, de-indexed from default search) but recoverable with a strong cue — not deleted.
 - **Reconsolidation:** retrieval opens a short **lability window**; if new evidence contradicts or extends the memory (prediction error), it is revised and re-stored as a new version with lineage. Boundary conditions: memory age, strength, and degree of mismatch.
 - **Contradiction handling:** conflicting facts are detected, resolved by recency/provenance/confidence, or surfaced to the user.
 - **Source monitoring:** every memory carries origin (user said, tool output, inferred, dreamed) and confidence, to prevent confabulation from hardening into "fact."
@@ -168,7 +168,7 @@ The neuroscience behind each decision is in [`docs/NEUROSCIENCE.md`](docs/NEUROS
 **Goal:** Coordinated cognition rather than a single prompt loop.
 
 - **Executive:** maintains the goal stack, decomposes goals, monitors progress, controls the attention gate, and manages token/cost budgets.
-- **Global workspace:** specialist modules (retriever, planner, critic, tool-user, memory-writer) propose content; a competition selects what is *broadcast* into working memory each cycle.
+- **Global workspace:** specialist modules (retriever, planner, critic, tool-user, memory-writer) propose content; a competition selects what is _broadcast_ into working memory each cycle.
 - **Metacognition:** confidence/feeling-of-knowing estimates decide between answering, recalling, searching, or asking the user. Detect "I'm going in circles" and replan.
 - **Inhibition:** suppress irrelevant retrieved memories and prior failed approaches.
 - **Default-mode loop:** idle-time reflection, planning, and future simulation feeding the consolidation pipeline.
@@ -212,24 +212,24 @@ The neuroscience behind each decision is in [`docs/NEUROSCIENCE.md`](docs/NEUROS
 
 ## Risks & open questions
 
-| Risk | Mitigation |
-|---|---|
-| Brain metaphors add complexity without benefit | Evals first (Phase 2); each mechanism must beat a baseline or be cut |
-| LLM-driven consolidation hallucinates or drifts | Provenance links, hypothesis labeling, source monitoring, human-readable diffs, rollback via versioning |
-| Cost/latency of background processes | Budgets, idle-time scheduling, cheaper models for gating/consolidation |
-| Memory poisoning / prompt injection | Trust levels per source; untrusted content never writes high-trust semantic memory |
-| Privacy of stored experience | Local-first, redaction, retention policies, true deletion |
-| Neuroscience is contested in places (e.g. exact roles of CA3/DG, replay's causal role, reconsolidation replicability) | Treat as design heuristics, document uncertainty in `docs/NEUROSCIENCE.md` |
+| Risk                                                                                                                  | Mitigation                                                                                              |
+| --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Brain metaphors add complexity without benefit                                                                        | Evals first (Phase 2); each mechanism must beat a baseline or be cut                                    |
+| LLM-driven consolidation hallucinates or drifts                                                                       | Provenance links, hypothesis labeling, source monitoring, human-readable diffs, rollback via versioning |
+| Cost/latency of background processes                                                                                  | Budgets, idle-time scheduling, cheaper models for gating/consolidation                                  |
+| Memory poisoning / prompt injection                                                                                   | Trust levels per source; untrusted content never writes high-trust semantic memory                      |
+| Privacy of stored experience                                                                                          | Local-first, redaction, retention policies, true deletion                                               |
+| Neuroscience is contested in places (e.g. exact roles of CA3/DG, replay's causal role, reconsolidation replicability) | Treat as design heuristics, document uncertainty in `docs/NEUROSCIENCE.md`                              |
 
 ## Suggested milestones
 
-| Milestone | Phases | Outcome |
-|---|---|---|
-| **M0 – Skeleton** | 0–1 | Working baseline agent + CLI |
-| **M1 – Measurable** | 2–3 | Evals + curated working memory |
-| **M2 – It remembers** | 4–5 | Persistent episodic/semantic memory with cue-based recall |
-| **M3 – It learns** | 6–8 | Salience, sleep consolidation, forgetting, reconsolidation |
-| **M4 – It's skilled** | 9–10 | Procedural skills, executive, workspace |
-| **M5 – It ships** | 11–12 | Tooling, hardening, v1.0 |
+| Milestone             | Phases | Outcome                                                    |
+| --------------------- | ------ | ---------------------------------------------------------- |
+| **M0 – Skeleton**     | 0–1    | Working baseline agent + CLI                               |
+| **M1 – Measurable**   | 2–3    | Evals + curated working memory                             |
+| **M2 – It remembers** | 4–5    | Persistent episodic/semantic memory with cue-based recall  |
+| **M3 – It learns**    | 6–8    | Salience, sleep consolidation, forgetting, reconsolidation |
+| **M4 – It's skilled** | 9–10   | Procedural skills, executive, workspace                    |
+| **M5 – It ships**     | 11–12  | Tooling, hardening, v1.0                                   |
 
 Phases 3–10 are intended to be developed behind feature flags so every mechanism can be ablated in the eval suite.
