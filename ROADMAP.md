@@ -48,7 +48,7 @@ The neuroscience behind each decision is in [`docs/NEUROSCIENCE.md`](docs/NEUROS
 
 **Exit criteria:** `pnpm test` green in CI; "hello world" package builds and publishes to a dry run.
 
-## Phase 1 — A minimal, conventional agent loop (the baseline)
+## Phase 1 — A minimal, conventional agent loop (the baseline) 🚧 (implemented; baseline numbers pending)
 
 **Goal:** A working agent _without_ brain features — the control group every later phase must beat.
 
@@ -60,6 +60,8 @@ The neuroscience behind each decision is in [`docs/NEUROSCIENCE.md`](docs/NEUROS
 - Token accounting and cost tracking.
 
 **Exit criteria:** Completes simple coding/research tasks end to end; full traces recorded; baseline numbers captured.
+
+**Status:** the loop, providers, tools, CLI, traces and cost tracking are implemented and tested against scripted and recorded provider streams (see [ADR 0005](docs/adr/0005-provider-neutral-agent-loop.md)). Remaining: run the agent on a set of real tasks with a live model and record the baseline numbers (`neuro trace` summarizes each session).
 
 ## Phase 2 — Evaluation harness (build the ruler first)
 

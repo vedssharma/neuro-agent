@@ -6,6 +6,7 @@
     { "path": "../core" },
     { "path": "../memory" },
     { "path": "../providers" },
-    { "path": "../tools" }
+    { "path": "../tools" },
+    { "path": "../eval" }
   ]
 }

@@ -17,5 +17,9 @@
   ],
   "dependencies": {
     "@neuro-agent/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@neuro-agent/providers": "workspace:*",
+    "zod": "^3.25.76"
   }
 }
