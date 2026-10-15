@@ -1,0 +1,27 @@
+{
+  "name": "@neuro-agent/cli",
+  "version": "0.0.0",
+  "description": "Command-line interface for neuro-agent",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@neuro-agent/core": "workspace:*",
+    "@neuro-agent/memory": "workspace:*",
+    "@neuro-agent/providers": "workspace:*",
+    "@neuro-agent/tools": "workspace:*"
+  },
+  "bin": {
+    "neuro": "./dist/bin.js"
+  }
+}
