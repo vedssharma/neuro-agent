@@ -17,6 +17,7 @@
   ],
   "dependencies": {
     "@neuro-agent/core": "workspace:*",
+    "@neuro-agent/eval": "workspace:*",
     "@neuro-agent/memory": "workspace:*",
     "@neuro-agent/providers": "workspace:*",
     "@neuro-agent/tools": "workspace:*"
