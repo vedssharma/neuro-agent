@@ -1,16 +1,27 @@
 import type { Message } from "./messages.js";
 
+/** A piece of remembered content a strategy pulled back into the context. */
+export interface RetrievedItem {
+  id: string;
+  score: number;
+  text: string;
+}
+
 export interface ContextSelection {
   messages: Message[];
   /** How many leading transcript messages were left out. */
   dropped: number;
   estimatedTokens: number;
+  /** True when the strategy added or changed content (e.g. a summary or recalled memories). */
+  rewritten?: boolean;
+  /** Items recalled from memory for this call, best first. */
+  retrieved?: RetrievedItem[];
 }
 
 /** Chooses which part of the transcript is sent to the model on each turn. */
 export interface ContextStrategy {
   readonly name: string;
-  select(transcript: readonly Message[]): ContextSelection;
+  select(transcript: readonly Message[]): ContextSelection | Promise<ContextSelection>;
 }
 
 /** Rough, provider-independent token estimate (~4 characters per token). */
@@ -34,18 +45,19 @@ export function estimateTokens(message: Message): number {
   return Math.ceil(chars / 4) + 4;
 }
 
-const sum = (messages: readonly Message[]) => messages.reduce((n, m) => n + estimateTokens(m), 0);
+export const sumTokens = (messages: readonly Message[]) =>
+  messages.reduce((n, m) => n + estimateTokens(m), 0);
 
 /** Sends the whole transcript every turn. */
 export class FullTranscript implements ContextStrategy {
   readonly name = "full-transcript";
   select(transcript: readonly Message[]): ContextSelection {
-    return { messages: [...transcript], dropped: 0, estimatedTokens: sum(transcript) };
+    return { messages: [...transcript], dropped: 0, estimatedTokens: sumTokens(transcript) };
   }
 }
 
 /** A user message that starts a turn (rather than carrying tool results). */
-function isTurnStart(message: Message): boolean {
+export function isTurnStart(message: Message): boolean {
   return message.role === "user" && message.content.every((b) => b.type !== "tool_result");
 }
 
@@ -83,6 +95,6 @@ export class SlidingWindow implements ContextStrategy {
     if (lastTurnStart < 0) start = 0;
 
     const messages = transcript.slice(start);
-    return { messages, dropped: start, estimatedTokens: sum(messages) };
+    return { messages, dropped: start, estimatedTokens: sumTokens(messages) };
   }
 }

@@ -2,7 +2,7 @@
 
 An open-source agent harness, written from scratch in TypeScript, whose **memory works like a human brain**: a tiny attention-gated working memory, fast episodic and slow semantic long-term stores, sleep-like consolidation, cue-driven recall that edits what it touches, and forgetting as a feature.
 
-> **Status:** early development. Phase 1 (a conventional baseline agent with no brain features) is in place; the evaluation harness is next. See the [roadmap](ROADMAP.md).
+> **Status:** early development. The baseline agent (Phase 1) and the evaluation harness (Phase 2) are in place; working memory and attention (Phase 3) are next. See the [roadmap](ROADMAP.md) and the [current baseline numbers](docs/evals).
 
 ## Why
 
@@ -19,6 +19,14 @@ node packages/cli/dist/bin.js trace .neuro/traces/<file>.jsonl   # tokens, cost,
 ```
 
 The agent can read, list and search files in its workspace freely; it asks before writing files or running shell commands (`--yes` skips the prompt, `--read-only` removes those tools). Every session is recorded as a JSONL trace under `.neuro/traces/`. Run `neuro --help` for all options, including `--provider openai --base-url ... --model ...` for any OpenAI-compatible server and `--provider ollama` for local models.
+
+## Measure it
+
+```sh
+pnpm eval    # runs every benchmark suite against every baseline; report in docs/evals/
+```
+
+See [docs/evals](docs/evals/README.md) for what the suites test and how to run them against a live model.
 
 ## Development
 

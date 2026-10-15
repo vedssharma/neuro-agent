@@ -264,4 +264,31 @@ describe("Agent", () => {
   it("rejects duplicate tool names", () => {
     expect(() => setup([], { tools: [echo, echo] })).toThrow(/duplicate tool/);
   });
+
+  it("records strategy rewrites and recalled items, and flags the history as edited", async () => {
+    const { agent, provider, events } = setup([say("ok")], {
+      context: {
+        name: "test-recall",
+        select: async (transcript) => ({
+          messages: [
+            {
+              role: "user",
+              content: [{ type: "text", text: "memory" }, ...transcript[0]!.content],
+            },
+          ],
+          dropped: 0,
+          estimatedTokens: 5,
+          rewritten: true,
+          retrieved: [{ id: "m1", score: 0.9, text: "memory" }],
+        }),
+      },
+    });
+    await agent.send("hi");
+    expect(provider.requests[0]?.historyTruncated).toBe(true);
+    expect(events.find((e) => e.type === "model.request")?.payload).toMatchObject({
+      rewritten: true,
+      retrieved: [{ id: "m1", score: 0.9, text: "memory" }],
+    });
+    expect(events[0]?.payload).toMatchObject({ traceVersion: 1, contextStrategy: "test-recall" });
+  });
 });

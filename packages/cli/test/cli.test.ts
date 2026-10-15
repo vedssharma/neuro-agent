@@ -163,4 +163,45 @@ describe("cli", () => {
     expect(a.out()).toContain("write_file wants to run");
     expect(readdirSync(cwd)).toEqual(["a.txt"]);
   });
+
+  it("runs the offline benchmark and writes a report", async () => {
+    const outDir = mkdtempSync(join(tmpdir(), "neuro-eval-cli-"));
+    const a = io();
+    expect(
+      await run(
+        [
+          "eval",
+          "--scale",
+          "small",
+          "--suite",
+          "recall,update",
+          "--strategy",
+          "sliding-window,vector-rag",
+          "--out",
+          outDir,
+          "--traces",
+        ],
+        a.io,
+      ),
+    ).toBe(0);
+    expect(a.out()).toContain("| vector-rag |");
+    const md = readFileSync(join(outDir, "simulated-small.md"), "utf8");
+    expect(md).toContain("# Baseline comparison (simulated, small)");
+    const json = JSON.parse(readFileSync(join(outDir, "simulated-small.json"), "utf8"));
+    expect(json.results).toHaveLength(8);
+
+    const trace = join(outDir, "simulated-small-traces", "vector-rag", "recall-1.s2.jsonl");
+    const b = io();
+    expect(await run(["replay", trace], b.io)).toBe(0);
+    expect(b.out()).toMatch(/identical to the recording/);
+  });
+
+  it("validates eval options", async () => {
+    const a = io();
+    expect(await run(["eval", "--suite", "nope"], a.io)).toBe(2);
+    expect(a.err()).toContain("Unknown suite");
+    expect(await run(["eval", "--strategy", "nope", "--scale", "small"], a.io)).toBe(2);
+    expect(a.err()).toContain("Unknown strategy");
+    expect(await run(["replay"], a.io)).toBe(2);
+  });
 });

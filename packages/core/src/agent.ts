@@ -1,6 +1,7 @@
 import { SlidingWindow, type ContextStrategy } from "./context.js";
 import {
   createEvent,
+  TRACE_VERSION,
   type AgentEvent,
   type AgentEventPayloads,
   type AgentEventType,
@@ -115,6 +116,7 @@ export class Agent {
     if (!this.started) {
       this.started = true;
       this.emit("session.start", {
+        traceVersion: TRACE_VERSION,
         provider: this.options.provider.name,
         model: this.options.model,
         contextStrategy: this.context.name,
@@ -191,12 +193,14 @@ export class Agent {
     turn: number,
     signal: AbortSignal,
   ): Promise<{ message: AssistantMessage; stopReason: StopReason; usage: Usage }> {
-    const selection = this.context.select(this.transcriptLog);
+    const selection = await this.context.select(this.transcriptLog);
     this.emit("model.request", {
       turn,
       messages: selection.messages.length,
       droppedMessages: selection.dropped,
       estimatedTokens: selection.estimatedTokens,
+      rewritten: selection.rewritten ?? false,
+      ...(selection.retrieved ? { retrieved: selection.retrieved } : {}),
     });
     const stream = this.options.provider.stream({
       model: this.options.model,
@@ -204,7 +208,7 @@ export class Agent {
       messages: selection.messages,
       tools: this.toolSpecs,
       maxTokens: this.options.maxTokens ?? 16_000,
-      historyTruncated: selection.dropped > 0,
+      historyTruncated: selection.dropped > 0 || (selection.rewritten ?? false),
       signal,
     });
     for await (const event of stream) {
