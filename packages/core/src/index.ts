@@ -1,5 +1,5 @@
 export { VERSION } from "./version.js";
-export { AgentEventSchema, createEvent, isEvent } from "./events.js";
+export { AgentEventSchema, createEvent, isEvent, TRACE_VERSION } from "./events.js";
 export type {
   AgentEvent,
   AgentEventPayloads,
@@ -31,8 +31,14 @@ export type {
   ToolContext,
   ToolOutput,
 } from "./tool.js";
-export { estimateTokens, FullTranscript, SlidingWindow } from "./context.js";
-export type { ContextSelection, ContextStrategy } from "./context.js";
+export {
+  estimateTokens,
+  FullTranscript,
+  isTurnStart,
+  SlidingWindow,
+  sumTokens,
+} from "./context.js";
+export type { ContextSelection, ContextStrategy, RetrievedItem } from "./context.js";
 export { addUsage, CostTracker, costOf, DEFAULT_PRICING, ZERO_USAGE } from "./usage.js";
 export type { ModelPricing, Usage } from "./usage.js";
 export { JsonlTraceWriter, readTrace, teeSinks } from "./trace.js";

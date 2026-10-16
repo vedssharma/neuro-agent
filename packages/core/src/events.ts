@@ -31,12 +31,16 @@ export function createEvent(
   });
 }
 
+/** Bumped when the meaning of recorded events changes; replay checks it. */
+export const TRACE_VERSION = 1;
+
 export type RunEndReason =
   "end_turn" | "max_turns" | "max_tokens" | "refusal" | "cancelled" | "error";
 
 /** Payloads of the events emitted by the Phase 1 agent loop. */
 export interface AgentEventPayloads {
   "session.start": {
+    traceVersion: number;
     provider: string;
     model: string;
     contextStrategy: string;
@@ -51,6 +55,8 @@ export interface AgentEventPayloads {
     messages: number;
     droppedMessages: number;
     estimatedTokens: number;
+    rewritten: boolean;
+    retrieved?: { id: string; score: number; text: string }[];
   };
   "model.restart": { turn: number; reason: string };
   /** Think: a model call finished. */

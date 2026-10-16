@@ -65,19 +65,29 @@ importers:
       '@neuro-agent/core':
         specifier: workspace:*
         version: link:../core
+      '@neuro-agent/memory':
+        specifier: workspace:*
+        version: link:../memory
+      '@neuro-agent/tools':
+        specifier: workspace:*
+        version: link:../tools
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
     devDependencies:
       '@neuro-agent/providers':
         specifier: workspace:*
         version: link:../providers
-      zod:
-        specifier: ^3.25.76
-        version: 3.25.76
 
   packages/memory:
     dependencies:
       '@neuro-agent/core':
         specifier: workspace:*
         version: link:../core
+    devDependencies:
+      '@neuro-agent/providers':
+        specifier: workspace:*
+        version: link:../providers
 
   packages/providers:
     dependencies:

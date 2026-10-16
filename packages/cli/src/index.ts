@@ -18,6 +18,7 @@ import {
   type RunResult,
 } from "@neuro-agent/core";
 import { summarizeTrace, type TraceSummary } from "@neuro-agent/eval";
+import { evalCommand, replayCommand } from "./eval.js";
 import {
   createProvider,
   DEFAULT_MODELS,
@@ -47,6 +48,8 @@ Usage:
   neuro [options]              start an interactive session
   neuro [options] <prompt>     run one request and exit
   neuro trace <file.jsonl>     summarize a recorded session trace
+  neuro replay <file.jsonl>    re-run a recorded session and check it matches
+  neuro eval [options]         run the benchmark suites (neuro eval --help)
 
 Options:
   -p, --provider <name>     ${PROVIDERS.join(" | ")} (default: anthropic)
@@ -76,6 +79,9 @@ When the task is done, reply with a short summary of what you did.`;
 export async function run(argv: string[], io: CliIO = defaultIO()): Promise<number> {
   const out = (s: string) => io.stdout.write(s);
   const err = (s: string) => io.stderr.write(s);
+
+  if (argv[0] === "eval") return evalCommand(argv.slice(1), io);
+  if (argv[0] === "replay") return replayCommand(argv.slice(1), io);
 
   let parsed;
   try {

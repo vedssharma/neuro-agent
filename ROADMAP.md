@@ -48,7 +48,7 @@ The neuroscience behind each decision is in [`docs/NEUROSCIENCE.md`](docs/NEUROS
 
 **Exit criteria:** `pnpm test` green in CI; "hello world" package builds and publishes to a dry run.
 
-## Phase 1 — A minimal, conventional agent loop (the baseline) 🚧 (implemented; baseline numbers pending)
+## Phase 1 — A minimal, conventional agent loop (the baseline) ✅ (done; live-model numbers pending)
 
 **Goal:** A working agent _without_ brain features — the control group every later phase must beat.
 
@@ -61,9 +61,9 @@ The neuroscience behind each decision is in [`docs/NEUROSCIENCE.md`](docs/NEUROS
 
 **Exit criteria:** Completes simple coding/research tasks end to end; full traces recorded; baseline numbers captured.
 
-**Status:** the loop, providers, tools, CLI, traces and cost tracking are implemented and tested against scripted and recorded provider streams (see [ADR 0005](docs/adr/0005-provider-neutral-agent-loop.md)). Remaining: run the agent on a set of real tasks with a live model and record the baseline numbers (`neuro trace` summarizes each session).
+**Status:** the loop, providers, tools, CLI, traces and cost tracking are implemented and tested against scripted and recorded provider streams (see [ADR 0005](docs/adr/0005-provider-neutral-agent-loop.md)). Offline baseline numbers are in [docs/evals](docs/evals) (Phase 2). Remaining: the same suite against a live model (`neuro eval -p anthropic`).
 
-## Phase 2 — Evaluation harness (build the ruler first)
+## Phase 2 — Evaluation harness (build the ruler first) ✅ (done; live-model run and public benchmarks pending)
 
 **Goal:** Prove or disprove every later claim.
 
@@ -74,6 +74,8 @@ The neuroscience behind each decision is in [`docs/NEUROSCIENCE.md`](docs/NEUROS
 - Optionally adapt public long-term-memory benchmarks (e.g. LongMemEval/LoCoMo-style) to our harness.
 
 **Exit criteria:** One command runs the suite and produces a comparison report; baselines published in `docs/evals`.
+
+**Status:** `pnpm eval` runs four seeded suites (long-horizon, cross-session recall, updates, interference) against all four baselines and writes [docs/evals/simulated-standard.md](docs/evals/simulated-standard.md). Offline runs use a deterministic simulated model; the same command runs against live providers. Traces are versioned and replayable (`neuro replay`). See [ADR 0006](docs/adr/0006-offline-evaluation.md). Open: a published live-model run, and adapting public long-term-memory benchmarks.
 
 ## Phase 3 — Working memory & attention (the prefrontal workbench)
 
