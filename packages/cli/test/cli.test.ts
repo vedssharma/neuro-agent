@@ -48,6 +48,20 @@ describe("cli", () => {
     expect(await run(["--max-turns", "0", "hi"], a.io)).toBe(2);
   });
 
+  it("compiles prompts from working memory with --working-memory", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "neuro-cli-"));
+    const a = io([
+      { content: [{ type: "text", text: "Hello." }], usage: { inputTokens: 10, outputTokens: 2 } },
+    ]);
+    expect(await run(["--cwd", cwd, "--no-trace", "--working-memory", "say", "hello"], a.io)).toBe(
+      0,
+    );
+    expect(a.provider.requests[0]?.messages[0]?.content[0]).toMatchObject({
+      type: "text",
+      text: expect.stringContaining("<working-memory>"),
+    });
+  });
+
   it("runs a one-shot task end to end, records a trace, and summarizes it", async () => {
     const cwd = mkdtempSync(join(tmpdir(), "neuro-cli-"));
     writeFileSync(join(cwd, "notes.txt"), "the answer is 42\n");
@@ -176,7 +190,7 @@ describe("cli", () => {
           "--suite",
           "recall,update",
           "--strategy",
-          "sliding-window,vector-rag",
+          "sliding-window,vector-rag,working-memory",
           "--out",
           outDir,
           "--traces",
@@ -186,11 +200,11 @@ describe("cli", () => {
     ).toBe(0);
     expect(a.out()).toContain("| vector-rag |");
     const md = readFileSync(join(outDir, "simulated-small.md"), "utf8");
-    expect(md).toContain("# Baseline comparison (simulated, small)");
+    expect(md).toContain("# Context strategy comparison (simulated, small)");
     const json = JSON.parse(readFileSync(join(outDir, "simulated-small.json"), "utf8"));
-    expect(json.results).toHaveLength(8);
+    expect(json.results).toHaveLength(12);
 
-    const trace = join(outDir, "simulated-small-traces", "vector-rag", "recall-1.s2.jsonl");
+    const trace = join(outDir, "simulated-small-traces", "working-memory", "recall-1.s2.jsonl");
     const b = io();
     expect(await run(["replay", trace], b.io)).toBe(0);
     expect(b.out()).toMatch(/identical to the recording/);

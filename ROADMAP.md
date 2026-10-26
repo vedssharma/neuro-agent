@@ -77,7 +77,7 @@ The neuroscience behind each decision is in [`docs/NEUROSCIENCE.md`](docs/NEUROS
 
 **Status:** `pnpm eval` runs four seeded suites (long-horizon, cross-session recall, updates, interference) against all four baselines and writes [docs/evals/simulated-standard.md](docs/evals/simulated-standard.md). Offline runs use a deterministic simulated model; the same command runs against live providers. Traces are versioned and replayable (`neuro replay`). See [ADR 0006](docs/adr/0006-offline-evaluation.md). Open: a published live-model run, and adapting public long-term-memory benchmarks.
 
-## Phase 3 — Working memory & attention (the prefrontal workbench)
+## Phase 3 — Working memory & attention (the prefrontal workbench) ✅ (done offline; live-model run pending)
 
 **Goal:** Treat the context window as a small, curated working memory.
 
@@ -89,6 +89,8 @@ The neuroscience behind each decision is in [`docs/NEUROSCIENCE.md`](docs/NEUROS
 - Graceful degradation as budget shrinks (drop the activated region before the focus).
 
 **Exit criteria:** Beats sliding-window and summary-buffer baselines on long-horizon tasks at equal or lower token cost.
+
+**Status:** `WorkingMemory` in `@neuro-agent/memory` compiles each prompt from a goal stack, an attention-gated focus region, an activated region recalled from earlier sessions, a sensory tail and a chunked current turn, with each mechanism behind a feature flag ([ADR 0007](docs/adr/0007-working-memory.md)). Offline it scores 100% on `long-horizon` at 48,766 tokens per task, against 0% at 107,911 for the sliding window and the summary buffer ([report](docs/evals/simulated-standard.md)). Open: confirming the result with a live model, and tuning the gate weights there.
 
 ## Phase 4 — Long-term memory v1: episodic + semantic stores
 

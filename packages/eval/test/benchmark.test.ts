@@ -17,6 +17,7 @@ import {
   generateTasks,
   gradeProbe,
   offlineBaselines,
+  offlineStrategies,
   renderMarkdown,
   replaySession,
   runBenchmark,
@@ -186,6 +187,30 @@ describe("runBenchmark", () => {
     });
     expect(full!.probes[0]!.correct).toBe(false);
     expect(full!.errors[0]).toMatch(/context window/);
+  });
+
+  it("working memory solves long-horizon tasks the baselines can't, with fewer tokens", async () => {
+    const tasks = generateTasks({
+      seed: 1,
+      scale: { ...SCALES.standard, tasksPerSuite: 1 },
+      suites: ["long-horizon"],
+    });
+    const results = await runBenchmark({
+      tasks,
+      strategies: offlineStrategies().filter((s) =>
+        ["sliding-window", "summary-buffer", "working-memory", "wm-no-chunking"].includes(s.name),
+      ),
+      provider: () => new SimulatedReader(),
+      model: "simulated",
+    });
+    const by = Object.fromEntries(results.map((r) => [r.strategy, r]));
+    const tokens = (name: string) => by[name]!.usage.inputTokens + by[name]!.usage.outputTokens;
+    expect(by["working-memory"]!.probes[0]!.correct).toBe(true);
+    expect(by["working-memory"]!.errors).toEqual([]);
+    for (const baseline of ["sliding-window", "summary-buffer", "wm-no-chunking"]) {
+      expect(by[baseline]!.probes[0]!.correct).toBe(false);
+      expect(tokens("working-memory")).toBeLessThan(tokens(baseline));
+    }
   });
 
   it("writes replayable traces", async () => {

@@ -5,3 +5,10 @@ export type { Summarizer } from "./summarize.js";
 export { SummaryBuffer, VectorRag } from "./baselines.js";
 export type { VectorRagOptions } from "./baselines.js";
 export { messageText, prependToFirst, userWords } from "./text.js";
+export { salience, WorkingMemory } from "./working-memory.js";
+export type {
+  Chunk,
+  ChunkKind,
+  WorkingMemoryFeatures,
+  WorkingMemoryOptions,
+} from "./working-memory.js";

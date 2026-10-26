@@ -13,8 +13,10 @@ export {
   gradeProbe,
   liveBaselines,
   offlineBaselines,
+  offlineStrategies,
   runBenchmark,
   UsageMeter,
+  workingMemoryStrategies,
 } from "./runner.js";
 export type {
   BaselineConfig,
