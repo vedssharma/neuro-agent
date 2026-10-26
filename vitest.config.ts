@@ -10,6 +10,7 @@ export default defineConfig({
     alias: {
       "@neuro-agent/core": src("core"),
       "@neuro-agent/memory": src("memory"),
+      "@neuro-agent/store-sqlite": src("store-sqlite"),
       "@neuro-agent/providers": src("providers"),
       "@neuro-agent/tools": src("tools"),
       "@neuro-agent/eval": src("eval"),

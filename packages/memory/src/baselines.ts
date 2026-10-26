@@ -61,15 +61,18 @@ export interface VectorRagOptions {
 export class VectorRag implements ContextStrategy {
   readonly name = "vector-rag";
   private readonly window: SlidingWindow;
-  private readonly session = globalThis.crypto.randomUUID().slice(0, 8);
+  /** Ids sort chronologically across sessions (store size at start), so score ties break the same way every run. */
+  private readonly session: string;
   private indexed = 0;
 
   constructor(private readonly options: VectorRagOptions) {
     this.window = new SlidingWindow(options.windowTokens);
+    const epoch = String(options.store.size).padStart(6, "0");
+    this.session = `${epoch}-${globalThis.crypto.randomUUID().slice(0, 4)}`;
   }
 
   private id(index: number): string {
-    return `${this.session}:${index}`;
+    return `${this.session}:${String(index).padStart(6, "0")}`;
   }
 
   async select(transcript: readonly Message[]): Promise<ContextSelection> {

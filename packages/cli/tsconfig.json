@@ -5,6 +5,7 @@
   "references": [
     { "path": "../core" },
     { "path": "../memory" },
+    { "path": "../store-sqlite" },
     { "path": "../providers" },
     { "path": "../tools" },
     { "path": "../eval" }

@@ -5,7 +5,14 @@
  * graded by exact match, by a live model or by the simulated reader.
  */
 
-export const SUITES = ["long-horizon", "recall", "update", "interference"] as const;
+export const SUITES = [
+  "long-horizon",
+  "recall",
+  "update",
+  "interference",
+  "multi-session",
+  "dense-interference",
+] as const;
 export type Suite = (typeof SUITES)[number];
 
 export interface Probe {
@@ -43,6 +50,10 @@ export interface Scale {
   files: number;
   fileTokens: number;
   lockers: number;
+  /** Facts per message in the dense-interference suite. */
+  denseFacts: number;
+  /** Sessions (one building each) in the dense-interference suite. */
+  denseSessions: number;
 }
 
 export const SCALES: Record<"small" | "standard", Scale> = {
@@ -53,6 +64,8 @@ export const SCALES: Record<"small" | "standard", Scale> = {
     files: 5,
     fileTokens: 150,
     lockers: 12,
+    denseFacts: 8,
+    denseSessions: 2,
   },
   standard: {
     tasksPerSuite: 5,
@@ -61,6 +74,8 @@ export const SCALES: Record<"small" | "standard", Scale> = {
     files: 16,
     fileTokens: 1200,
     lockers: 40,
+    denseFacts: 24,
+    denseSessions: 6,
   },
 };
 
@@ -273,6 +288,84 @@ function longHorizonTask(r: Rand, s: Scale, i: number): BenchmarkTask {
   };
 }
 
+function multiSessionTask(r: Rand, s: Scale, i: number): BenchmarkTask {
+  const [a, b] = shuffle(r, SUBJECTS).slice(0, 2) as [string, string];
+  const va1 = value(r, a);
+  let va2 = value(r, a);
+  while (va2 === va1) va2 = value(r, a);
+  const vb = value(r, b);
+  const fill = (n: number) => Array.from({ length: n }, () => fillerTurn(r, s.fillerTokens));
+  const third = Math.max(1, Math.round(s.fillerTurns / 3));
+  return {
+    id: `multi-session-${i + 1}`,
+    suite: "multi-session",
+    description:
+      "Facts stated and corrected across three sessions, probed in a fourth: recall must survive several sessions and prefer the newest value.",
+    sessions: [
+      [
+        { user: `For the record, the ${a} is ${va1}.` },
+        ...fill(third),
+        { user: `Please remember this: the ${b} is ${vb}.` },
+        ...fill(third),
+      ],
+      [
+        ...fill(third),
+        { user: `Correction, I changed my mind: the ${a} is now ${va2}.` },
+        ...fill(third),
+      ],
+      [
+        ...fill(third),
+        { user: `Reminder for later: the ${a} was ${va1} originally, before the change.` },
+        ...fill(third),
+      ],
+      [
+        ...fill(2),
+        { user: `What is the ${a}?`, probe: { answer: va2, stale: [va1], retrievable: true } },
+        { user: `What is the ${b}?`, probe: { answer: vb, retrievable: true } },
+      ],
+    ],
+  };
+}
+
+const BUILDINGS = ["north", "south", "east", "west", "central", "annex", "harbor", "hill"];
+
+function denseInterferenceTask(r: Rand, s: Scale, i: number): BenchmarkTask {
+  const codes = new Map<string, string>();
+  const sessions: Turn[][] = BUILDINGS.slice(0, s.denseSessions).map((building) => {
+    const lockers = shuffle(
+      r,
+      Array.from({ length: s.denseFacts * 2 }, (_, k) => k + 1),
+    );
+    const turns: Turn[] = [];
+    for (let m = 0; m < 2; m++) {
+      const facts = lockers.slice(m * s.denseFacts, (m + 1) * s.denseFacts).map((n) => {
+        const code = String(int(r, 1000, 9999));
+        codes.set(`locker ${n} in building ${building}`, code);
+        return `the code for locker ${n} in building ${building} is ${code}`;
+      });
+      turns.push({
+        user: `Building ${building} locker list, please keep track: ${facts.join("; ")}.`,
+      });
+      turns.push(fillerTurn(r, Math.ceil(s.fillerTokens / 2)));
+    }
+    return turns;
+  });
+  const asked = shuffle(r, [...codes.keys()]).slice(0, 4);
+  sessions.push([
+    fillerTurn(r, s.fillerTokens),
+    ...asked.map((key) => ({
+      user: `What is the code for ${key}?`,
+      probe: { answer: codes.get(key)!, retrievable: true },
+    })),
+  ]);
+  return {
+    id: `dense-interference-${i + 1}`,
+    suite: "dense-interference",
+    description: `${s.denseSessions} sessions each list ${s.denseFacts * 2} locker codes for one building, with the same locker numbers in every building; four codes are probed in a final session.`,
+    sessions,
+  };
+}
+
 function shuffle<T>(r: Rand, xs: readonly T[]): T[] {
   const out = [...xs];
   for (let i = out.length - 1; i > 0; i--) {
@@ -287,6 +380,8 @@ const GENERATORS: Record<Suite, (r: Rand, s: Scale, i: number) => BenchmarkTask>
   recall: recallTask,
   update: updateTask,
   interference: interferenceTask,
+  "multi-session": multiSessionTask,
+  "dense-interference": denseInterferenceTask,
 };
 
 /** Builds the benchmark deterministically from a seed. */

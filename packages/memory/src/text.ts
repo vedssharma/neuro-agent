@@ -28,3 +28,24 @@ export function prependToFirst(messages: Message[], text: string): Message[] {
   }
   return [{ role: "user", content: [{ type: "text", text }, ...first.content] }, ...rest];
 }
+
+const CUES =
+  /\b(remember|keep in mind|keep track|correction|changed my mind|important|note that|for the record|deadline|must|never|always)\b/i;
+
+/** How much a piece of text looks worth keeping: numbers and codes, statements, explicit cues. */
+export function salience(text: string): number {
+  let s = 0;
+  if (/\d/.test(text)) s += 0.4;
+  if (/\b(is|are|was|were)\b/i.test(text)) s += 0.3;
+  if (CUES.test(text)) s += 0.4;
+  return Math.min(1, s);
+}
+
+/** Sentence boundaries: after . ! ? ; or at a line break. */
+export const SENTENCE = /(?<=[.!?;])\s+|\n+/;
+
+/** Collapses whitespace and cuts to `max` characters with an ellipsis. */
+export function clip(text: string, max: number): string {
+  const flat = text.replace(/\s+/g, " ").trim();
+  return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
+}

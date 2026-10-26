@@ -62,6 +62,47 @@ describe("cli", () => {
     });
   });
 
+  it("remembers across sessions with --memory and inspects it with neuro memory", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "neuro-cli-"));
+    const reply = (text: string) => ({
+      content: [{ type: "text" as const, text }],
+      usage: { inputTokens: 10, outputTokens: 2 },
+    });
+    const a = io([reply("Noted.")]);
+    const remember = [
+      "--cwd",
+      cwd,
+      "--no-trace",
+      "--memory",
+      "remember:",
+      "the",
+      "deploy",
+      "region",
+      "is",
+      "eu-west-2",
+    ];
+    expect(await run(remember, a.io)).toBe(0);
+
+    const b = io([reply("eu-west-2")]);
+    expect(
+      await run(["--cwd", cwd, "--no-trace", "--memory", "What is the deploy region?"], b.io),
+    ).toBe(0);
+    const first = b.provider.requests[0]?.messages[0]?.content[0];
+    expect(first?.type === "text" && first.text).toContain("the deploy region is eu-west-2");
+
+    const stats = io();
+    expect(await run(["memory", "stats", "-C", cwd], stats.io)).toBe(0);
+    expect(stats.out()).toMatch(/facts: +1 current, 0 superseded/);
+    const search = io();
+    expect(await run(["memory", "search", "-C", cwd, "deploy region"], search.io)).toBe(0);
+    expect(search.out()).toContain("the deploy region is eu-west-2");
+    const md = io();
+    expect(await run(["memory", "export", "-C", cwd], md.io)).toBe(0);
+    expect(md.out()).toContain("# Memory");
+    const bad = io();
+    expect(await run(["memory", "nope", "-C", cwd], bad.io)).toBe(2);
+  });
+
   it("runs a one-shot task end to end, records a trace, and summarizes it", async () => {
     const cwd = mkdtempSync(join(tmpdir(), "neuro-cli-"));
     writeFileSync(join(cwd, "notes.txt"), "the answer is 42\n");
