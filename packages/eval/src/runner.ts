@@ -21,8 +21,10 @@ import {
   messageText,
   SummaryBuffer,
   VectorRag,
+  WorkingMemory,
   type Embedder,
   type Summarizer,
+  type WorkingMemoryFeatures,
 } from "@neuro-agent/memory";
 import { listFilesTool, readFileTool, searchTool } from "@neuro-agent/tools";
 import type { BenchmarkTask, Probe, Suite } from "./tasks.js";
@@ -82,6 +84,28 @@ export function baselineStrategies(config: BaselineConfig): StrategySpec[] {
   ];
 }
 
+/**
+ * Phase 3 working memory at the same token budget as the baselines, plus one
+ * ablation per mechanism (each switches a single feature off).
+ */
+export function workingMemoryStrategies(
+  windowTokens: number,
+  embedder: Embedder = new HashingEmbedder(),
+): StrategySpec[] {
+  const variant = (name: string, features: Partial<WorkingMemoryFeatures> = {}): StrategySpec => ({
+    name,
+    retrieves: true,
+    create: (memory) =>
+      new WorkingMemory({ budgetTokens: windowTokens, store: memory.store, embedder, features }),
+  });
+  return [
+    variant("working-memory"),
+    variant("wm-no-chunking", { chunking: false }),
+    variant("wm-recency-gate", { attention: false }),
+    variant("wm-no-activation", { activation: false }),
+  ];
+}
+
 export const DEFAULT_WINDOW_TOKENS = 4000;
 
 /** Offline defaults: extractive summaries and hashed bag-of-words embeddings. */
@@ -94,6 +118,11 @@ export function offlineBaselines(windowTokens = DEFAULT_WINDOW_TOKENS): Strategy
     summarizer: extractiveSummarizer({ maxTokens: summaryTokens }),
     embedder: new HashingEmbedder(),
   });
+}
+
+/** The baselines plus working memory and its ablations, all offline. */
+export function offlineStrategies(windowTokens = DEFAULT_WINDOW_TOKENS): StrategySpec[] {
+  return [...offlineBaselines(windowTokens), ...workingMemoryStrategies(windowTokens)];
 }
 
 /** Live defaults: the summary buffer summarizes with the model under test. */

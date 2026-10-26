@@ -7,7 +7,7 @@ import {
   DEFAULT_WINDOW_TOKENS,
   generateTasks,
   liveBaselines,
-  offlineBaselines,
+  offlineStrategies,
   renderMarkdown,
   replaySession,
   runBenchmark,
@@ -15,6 +15,7 @@ import {
   SimulatedReader,
   SUITES,
   UsageMeter,
+  workingMemoryStrategies,
   type StrategySpec,
   type Suite,
 } from "@neuro-agent/eval";
@@ -34,7 +35,8 @@ export interface CommandIO {
 
 export const EVAL_USAGE = `Usage: neuro eval [options]
 
-Runs the benchmark suites against every baseline context strategy and writes
+Runs the benchmark suites against every context strategy (the baselines,
+working memory and its ablations) and writes
 a comparison report (<out>/<name>.md and .json).
 
 Options:
@@ -44,8 +46,8 @@ Options:
       --scale <name>        small | standard (default: standard)
       --seed <n>            task generator seed (default: 1)
       --suite <list>        comma-separated: ${SUITES.join(", ")} (default: all)
-      --strategy <list>     comma-separated baseline names (default: all)
-      --window-tokens <n>   context window budget for the windowed baselines (default: ${DEFAULT_WINDOW_TOKENS})
+      --strategy <list>     comma-separated strategy names (default: all)
+      --window-tokens <n>   prompt budget for the windowed strategies (default: ${DEFAULT_WINDOW_TOKENS})
       --context-limit <n>   simulated model's hard context limit in tokens (default: 16000)
       --out <dir>           output directory (default: eval-results)
       --name <name>         report file name (default: <provider>-<scale>)
@@ -118,7 +120,7 @@ export async function evalCommand(argv: string[], io: CommandIO): Promise<number
   if (providerName === "simulated") {
     model = "simulated";
     makeProvider = () => new SimulatedReader({ contextLimit });
-    strategies = offlineBaselines(windowTokens);
+    strategies = offlineStrategies(windowTokens);
   } else {
     const name = providerName as ProviderName;
     const m = values.model ?? DEFAULT_MODELS[name];
@@ -129,7 +131,10 @@ export async function evalCommand(argv: string[], io: CommandIO): Promise<number
       : {};
     const shared = (io.createProvider ?? createProvider)(name, options);
     makeProvider = () => shared;
-    strategies = liveBaselines(shared, model, meter.add, windowTokens);
+    strategies = [
+      ...liveBaselines(shared, model, meter.add, windowTokens),
+      ...workingMemoryStrategies(windowTokens),
+    ];
   }
   if (values.strategy) {
     const wanted = values.strategy.split(",").map((s) => s.trim());
@@ -164,7 +169,7 @@ export async function evalCommand(argv: string[], io: CommandIO): Promise<number
   );
 
   const meta = {
-    title: `Baseline comparison (${providerName}, ${scaleName})`,
+    title: `Context strategy comparison (${providerName}, ${scaleName})`,
     provider: providerName,
     model,
     seed,

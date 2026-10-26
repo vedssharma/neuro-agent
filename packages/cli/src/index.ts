@@ -18,6 +18,7 @@ import {
   type RunResult,
 } from "@neuro-agent/core";
 import { summarizeTrace, type TraceSummary } from "@neuro-agent/eval";
+import { WorkingMemory } from "@neuro-agent/memory";
 import { evalCommand, replayCommand } from "./eval.js";
 import {
   createProvider,
@@ -57,8 +58,10 @@ Options:
       --base-url <url>      API base URL (OpenAI-compatible servers, Ollama host)
       --effort <level>      anthropic effort: low | medium | high | xhigh | max
   -C, --cwd <dir>           workspace root for tools (default: current directory)
-      --context-tokens <n>  sliding-window budget in estimated tokens (default: 100000)
+      --context-tokens <n>  prompt budget in estimated tokens (default: 100000)
       --full-transcript     send the whole transcript every turn instead
+      --working-memory      compile each prompt from working memory (goal, focus, recent turns)
+                            instead of a sliding window
       --max-turns <n>       model calls per request (default: 25)
       --max-tokens <n>      output tokens per model call (default: 16000)
   -y, --yes                 approve every write and shell call without asking
@@ -96,6 +99,7 @@ export async function run(argv: string[], io: CliIO = defaultIO()): Promise<numb
         cwd: { type: "string", short: "C" },
         "context-tokens": { type: "string" },
         "full-transcript": { type: "boolean" },
+        "working-memory": { type: "boolean" },
         "max-turns": { type: "string" },
         "max-tokens": { type: "string" },
         yes: { type: "boolean", short: "y" },
@@ -176,7 +180,9 @@ export async function run(argv: string[], io: CliIO = defaultIO()): Promise<numb
   const provider = (io.createProvider ?? createProvider)(providerName, providerOptions);
   const context: ContextStrategy = opts["full-transcript"]
     ? new FullTranscript()
-    : new SlidingWindow(contextTokens);
+    : opts["working-memory"]
+      ? new WorkingMemory({ budgetTokens: contextTokens })
+      : new SlidingWindow(contextTokens);
   const tools = builtinTools().filter((t) => !opts["read-only"] || t.permission === "read");
 
   const prompt = positionals.join(" ").trim();
