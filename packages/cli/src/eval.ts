@@ -7,6 +7,7 @@ import {
   DEFAULT_WINDOW_TOKENS,
   generateTasks,
   liveBaselines,
+  longTermStrategies,
   offlineStrategies,
   renderMarkdown,
   replaySession,
@@ -36,7 +37,7 @@ export interface CommandIO {
 export const EVAL_USAGE = `Usage: neuro eval [options]
 
 Runs the benchmark suites against every context strategy (the baselines,
-working memory and its ablations) and writes
+working memory, long-term memory and their ablations) and writes
 a comparison report (<out>/<name>.md and .json).
 
 Options:
@@ -134,6 +135,7 @@ export async function evalCommand(argv: string[], io: CommandIO): Promise<number
     strategies = [
       ...liveBaselines(shared, model, meter.add, windowTokens),
       ...workingMemoryStrategies(windowTokens),
+      ...longTermStrategies(windowTokens),
     ];
   }
   if (values.strategy) {

@@ -23,6 +23,7 @@ import {
   runBenchmark,
   SCALES,
   SimulatedReader,
+  SUITES,
   visibleFacts,
 } from "@neuro-agent/eval";
 import { ScriptedProvider } from "@neuro-agent/providers";
@@ -107,9 +108,7 @@ describe("tasks", () => {
     const a = generateTasks({ seed: 7, scale: SCALES.small });
     expect(generateTasks({ seed: 7, scale: SCALES.small })).toEqual(a);
     expect(generateTasks({ seed: 8, scale: SCALES.small })).not.toEqual(a);
-    expect(new Set(a.map((t) => t.suite))).toEqual(
-      new Set(["long-horizon", "recall", "update", "interference"]),
-    );
+    expect(new Set(a.map((t) => t.suite))).toEqual(new Set(SUITES));
     for (const t of a) expect(t.sessions.flat().some((turn) => turn.probe)).toBe(true);
   });
 
@@ -211,6 +210,34 @@ describe("runBenchmark", () => {
       expect(by[baseline]!.probes[0]!.correct).toBe(false);
       expect(tokens("working-memory")).toBeLessThan(tokens(baseline));
     }
+  });
+
+  it("long-term memory beats vector RAG on dense cross-session interference", async () => {
+    const tasks = generateTasks({
+      seed: 1,
+      scale: { ...SCALES.standard, tasksPerSuite: 2 },
+      suites: ["dense-interference", "multi-session"],
+    });
+    const results = await runBenchmark({
+      tasks,
+      strategies: offlineStrategies().filter((s) =>
+        ["vector-rag", "long-term-memory", "ltm-episodes-only"].includes(s.name),
+      ),
+      provider: () => new SimulatedReader(),
+      model: "simulated",
+    });
+    const accuracy = Object.fromEntries(
+      aggregate(results)
+        .filter((a) => a.suite === "dense-interference")
+        .map((a) => [a.strategy, a.accuracy]),
+    );
+    expect(accuracy["long-term-memory"]).toBe(1);
+    expect(accuracy["vector-rag"]).toBeLessThan(1);
+    expect(accuracy["ltm-episodes-only"]).toBeLessThan(1);
+    const multi = results.filter(
+      (r) => r.suite === "multi-session" && r.strategy === "long-term-memory",
+    );
+    expect(multi.flatMap((r) => r.probes).every((p) => p.correct)).toBe(true);
   });
 
   it("writes replayable traces", async () => {

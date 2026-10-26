@@ -3,6 +3,7 @@
   "references": [
     { "path": "packages/core" },
     { "path": "packages/memory" },
+    { "path": "packages/store-sqlite" },
     { "path": "packages/providers" },
     { "path": "packages/tools" },
     { "path": "packages/eval" },

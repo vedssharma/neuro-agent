@@ -16,13 +16,16 @@ import {
 import {
   extractiveSummarizer,
   HashingEmbedder,
+  InMemoryBackend,
   InMemoryVectorStore,
   llmSummarizer,
+  LongTermMemory,
   messageText,
   SummaryBuffer,
   VectorRag,
   WorkingMemory,
   type Embedder,
+  type RetrievalFeatures,
   type Summarizer,
   type WorkingMemoryFeatures,
 } from "@neuro-agent/memory";
@@ -31,7 +34,10 @@ import type { BenchmarkTask, Probe, Suite } from "./tasks.js";
 
 /** Long-term state that survives across the sessions of one task. */
 export interface EpisodeMemory {
+  /** Phase 2/3 message-level vector store. */
   store: InMemoryVectorStore;
+  /** Phase 4 episodic + semantic memory, created on first use. */
+  longTerm(features?: Partial<RetrievalFeatures>): LongTermMemory;
 }
 
 export interface StrategySpec {
@@ -106,6 +112,24 @@ export function workingMemoryStrategies(
   ];
 }
 
+/**
+ * Phase 4: working memory backed by episodic and semantic long-term memory
+ * with hybrid recall, plus ablations of the retrieval channels.
+ */
+export function longTermStrategies(windowTokens: number): StrategySpec[] {
+  const variant = (name: string, features: Partial<RetrievalFeatures> = {}): StrategySpec => ({
+    name,
+    retrieves: true,
+    create: (memory) =>
+      new WorkingMemory({ budgetTokens: windowTokens, longTerm: memory.longTerm(features) }),
+  });
+  return [
+    variant("long-term-memory"),
+    variant("ltm-vector-only", { lexical: false, graph: false }),
+    variant("ltm-episodes-only", { semantic: false }),
+  ];
+}
+
 export const DEFAULT_WINDOW_TOKENS = 4000;
 
 /** Offline defaults: extractive summaries and hashed bag-of-words embeddings. */
@@ -122,7 +146,11 @@ export function offlineBaselines(windowTokens = DEFAULT_WINDOW_TOKENS): Strategy
 
 /** The baselines plus working memory and its ablations, all offline. */
 export function offlineStrategies(windowTokens = DEFAULT_WINDOW_TOKENS): StrategySpec[] {
-  return [...offlineBaselines(windowTokens), ...workingMemoryStrategies(windowTokens)];
+  return [
+    ...offlineBaselines(windowTokens),
+    ...workingMemoryStrategies(windowTokens),
+    ...longTermStrategies(windowTokens),
+  ];
 }
 
 /** Live defaults: the summary buffer summarizes with the model under test. */
@@ -243,7 +271,15 @@ async function runTask(
     writeFileSync(join(workspace, name), content);
   }
   meter?.take();
-  const memory: EpisodeMemory = { store: new InMemoryVectorStore() };
+  let longTerm: LongTermMemory | undefined;
+  const memory: EpisodeMemory = {
+    store: new InMemoryVectorStore(),
+    longTerm: (features) =>
+      (longTerm ??= new LongTermMemory({
+        backend: new InMemoryBackend(),
+        features: features ?? {},
+      })),
+  };
   const result: TaskResult = {
     taskId: task.id,
     suite: task.suite,

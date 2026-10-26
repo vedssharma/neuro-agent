@@ -7,7 +7,8 @@ import {
   type RetrievedItem,
 } from "@neuro-agent/core";
 import { cosine, HashingEmbedder, type Embedder, type InMemoryVectorStore } from "./embedding.js";
-import { prependToFirst, userWords } from "./text.js";
+import type { LongTermStore } from "./longterm/memory.js";
+import { clip, prependToFirst, salience, SENTENCE, userWords } from "./text.js";
 
 /** Mechanisms that can be switched off one at a time for ablations. */
 export interface WorkingMemoryFeatures {
@@ -26,6 +27,12 @@ export interface WorkingMemoryOptions {
   budgetTokens: number;
   /** Long-term store shared across sessions; attended or salient chunks are promoted into it. */
   store?: InMemoryVectorStore;
+  /**
+   * Episodic and semantic long-term memory (Phase 4). When set it replaces
+   * `store`: promoted chunks are encoded into it and the activated region is
+   * filled by its hybrid recall.
+   */
+  longTerm?: LongTermStore;
   embedder?: Embedder;
   /** Active chunks in the focus region. Default 4. */
   focusSlots?: number;
@@ -87,19 +94,6 @@ const DEFAULT_FEATURES: WorkingMemoryFeatures = {
 /** Earlier requests listed under the current goal. */
 const GOAL_STACK_DEPTH = 2;
 const tokensOf = (text: string) => Math.ceil(text.length / 4);
-const SENTENCE = /(?<=[.!?;])\s+|\n+/;
-const CUES =
-  /\b(remember|keep in mind|keep track|correction|changed my mind|important|note that|for the record|deadline|must|never|always)\b/i;
-
-/** How much a piece of text looks worth keeping: numbers and codes, statements, explicit cues. */
-export function salience(text: string): number {
-  let s = 0;
-  if (/\d/.test(text)) s += 0.4;
-  if (/\b(is|are|was|were)\b/i.test(text)) s += 0.3;
-  if (CUES.test(text)) s += 0.4;
-  return Math.min(1, s);
-}
-
 /**
  * Working memory as a context strategy (Phase 3): each prompt is compiled
  * from slots instead of a raw transcript suffix.
@@ -187,7 +181,7 @@ export class WorkingMemory implements ContextStrategy {
       Math.round(budget * (this.options.activatedShare ?? 0.2)),
       remaining,
     );
-    const activated = await this.activate(goalVector, activatedBudget);
+    const activated = await this.activate(goal, goalVector, activatedBudget);
     remaining -= activated.tokens;
 
     // Sensory tail: the most recent raw turns that still fit.
@@ -272,7 +266,10 @@ export class WorkingMemory implements ContextStrategy {
     this.chunks.push(...fresh);
 
     // Sensory buffer: salient chunks are promoted at once, the rest only if attended.
-    await this.promote(fresh.filter((c) => c.salience >= 0.5));
+    await this.promote(
+      fresh.filter((c) => c.salience >= 0.5),
+      false,
+    );
     const horizon = this.seq - (this.options.sensoryChunks ?? 48);
     this.chunks = this.chunks.filter((c) => {
       const keep = c.promoted || c.rehearsal > 0 || c.seq > horizon;
@@ -298,11 +295,24 @@ export class WorkingMemory implements ContextStrategy {
     };
   }
 
-  private async promote(chunks: Chunk[]): Promise<void> {
+  private async promote(chunks: Chunk[], attended: boolean): Promise<void> {
     const store = this.options.store;
     const todo = chunks.filter((c) => !c.promoted);
     for (const c of todo) c.promoted = true;
-    if (!store || todo.length === 0) return;
+    if (todo.length === 0) return;
+    if (this.options.longTerm) {
+      await this.options.longTerm.encode(
+        todo.map((c) => ({
+          session: this.session,
+          who: c.kind,
+          where: c.label,
+          text: c.text,
+          attended,
+        })),
+      );
+      return;
+    }
+    if (!store) return;
     const vectors = await this.embedder.embed(todo.map((c) => c.text));
     store.add(
       todo.map((c, i) => ({
@@ -451,17 +461,20 @@ export class WorkingMemory implements ContextStrategy {
     // Rehearsal: admitted chunks are refreshed, the rest decay; attended chunks are promoted.
     const admitted = new Set(items.map((i) => i.chunk));
     for (const c of this.chunks) c.rehearsal = admitted.has(c) ? 1 : c.rehearsal / 2;
-    await this.promote([...admitted]);
+    await this.promote([...admitted], true);
     items.sort((a, b) => a.chunk.seq - b.chunk.seq);
     return { items, tokens };
   }
 
   private async activate(
+    goal: string,
     goalVector: number[],
     budget: number,
   ): Promise<{ items: Rendered[]; tokens: number }> {
+    if (!this.features.activation || budget <= 0) return { items: [], tokens: 0 };
+    if (this.options.longTerm) return this.recallLongTerm(goal, goalVector, budget);
     const store = this.options.store;
-    if (!this.features.activation || !store || budget <= 0) return { items: [], tokens: 0 };
+    if (!store) return { items: [], tokens: 0 };
     const own = new Set(this.chunks.map((c) => c.key));
     const prefix = `${this.session}:`;
     const k = this.options.activatedSlots ?? 4;
@@ -490,6 +503,36 @@ export class WorkingMemory implements ContextStrategy {
     items.sort((a, b) => a.key.localeCompare(b.key));
     return { items, tokens };
   }
+
+  /** Activated region from episodic and semantic memory, oldest first so later statements win. */
+  private async recallLongTerm(
+    goal: string,
+    goalVector: number[],
+    budget: number,
+  ): Promise<{ items: Rendered[]; tokens: number }> {
+    const recalled = await this.options.longTerm!.recall(goal, {
+      k: this.options.activatedSlots ?? 4,
+      excludeSession: this.session,
+    });
+    const items: (Rendered & { time: number })[] = [];
+    let tokens = 0;
+    for (const r of recalled) {
+      const header =
+        r.kind === "fact" ? `[recalled ${r.label} ${r.id}]` : `[recalled ${r.id} · ${r.label}]`;
+      const rendered = await this.render(
+        { key: r.id, text: r.text, label: r.label },
+        goalVector,
+        this.chunkTokens,
+        header,
+      );
+      const cost = tokensOf(rendered) + 1;
+      if (tokens + cost > budget) continue;
+      items.push({ key: r.id, score: r.score, rendered, time: r.time });
+      tokens += cost;
+    }
+    items.sort((a, b) => a.time - b.time);
+    return { items, tokens };
+  }
 }
 
 interface Rendered {
@@ -507,9 +550,4 @@ function describeInput(input: unknown): string {
     if (values.length > 0) return clip(values.map(String).join(", "), 60);
   }
   return "";
-}
-
-function clip(text: string, max: number): string {
-  const flat = text.replace(/\s+/g, " ").trim();
-  return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
 }

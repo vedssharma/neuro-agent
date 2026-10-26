@@ -10,7 +10,7 @@ node packages/cli/dist/bin.js eval -p anthropic --scale small --out docs/evals  
 
 Published reports:
 
-- [simulated-standard.md](simulated-standard.md): offline numbers for the baselines and Phase 3 working memory (seed 1, 4,000-token budget, 16,000-token model limit).
+- [simulated-standard.md](simulated-standard.md): offline numbers for the baselines, Phase 3 working memory and Phase 4 long-term memory (seed 1, 4,000-token budget, 16,000-token model limit).
 
 Live-model reports will be added once they've been run with an API key.
 
@@ -18,12 +18,14 @@ Live-model reports will be added once they've been run with an API key.
 
 Each **task** is a scripted conversation: one or more sessions of user turns, some of which are **probes** with an expected answer. A new session starts a fresh agent; only long-term memory (the vector store) carries over. Tasks are generated from a seed, so a run is reproducible.
 
-| Suite          | What it tests                                                                                                                           | Roadmap item                             |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| `long-horizon` | Read 16 files one tool call at a time and add up a value from each. The reads alone exceed the model's context window.                  | (a) context far beyond the window        |
-| `recall`       | Two facts stated early, probed after 30 filler turns and again in a new session.                                                        | (b) needle / fact recall across sessions |
-| `update`       | A fact stated, later corrected ("I changed my mind"), probed in the same and a new session. A reply with the old value counts as stale. | (c) contradiction / update               |
-| `interference` | 40 similar facts (locker codes), each with a near-duplicate distractor ("locker 12 annex"); three are probed.                           | (d) distractor / interference            |
+| Suite                | What it tests                                                                                                                                            | Roadmap item                             |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| `long-horizon`       | Read 16 files one tool call at a time and add up a value from each. The reads alone exceed the model's context window.                                   | (a) context far beyond the window        |
+| `recall`             | Two facts stated early, probed after 30 filler turns and again in a new session.                                                                         | (b) needle / fact recall across sessions |
+| `update`             | A fact stated, later corrected ("I changed my mind"), probed in the same and a new session. A reply with the old value counts as stale.                  | (c) contradiction / update               |
+| `interference`       | 40 similar facts (locker codes), each with a near-duplicate distractor ("locker 12 annex"); three are probed.                                            | (d) distractor / interference            |
+| `multi-session`      | Two facts stated across three sessions, one of them corrected in the second, plus a later mention of the old value; probed in a fourth session.          | (b) and (c) across several sessions      |
+| `dense-interference` | Six sessions, each listing 48 locker codes for one building, with the same locker numbers in every building; four codes are probed in a seventh session. | (d) at scale, across sessions            |
 
 Every task records tokens, model calls, cost and wall-clock time (roadmap item e).
 
@@ -47,6 +49,14 @@ Every task records tokens, model calls, cost and wall-clock time (roadmap item e
 
 All of them use the same 4,000-token budget as the baselines.
 
+## Long-term memory (Phase 4)
+
+| Strategy            | What changes                                                                                                                                                             |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `long-term-memory`  | Working memory whose activated region comes from episodic and semantic long-term memory with hybrid recall. See [ADR 0008](../adr/0008-episodic-and-semantic-memory.md). |
+| `ltm-vector-only`   | Recall by embedding similarity only (no BM25, no graph).                                                                                                                 |
+| `ltm-episodes-only` | Recall from the episodic store only (no facts).                                                                                                                          |
+
 ## Metrics
 
 - **Accuracy**: share of probes whose reply contains the expected answer (case-insensitive).
@@ -69,6 +79,8 @@ Offline runs use `SimulatedReader`, a deterministic stand-in for an LLM. It sees
 - **No baseline survives a single turn bigger than the model's window** (`long-horizon`: 0% everywhere). Sliding windows only drop whole turns, so the latest turn's tool output always goes in whole.
 - **Working memory closes that gap**: 100% on `long-horizon` at 48,766 tokens per task, less than half of the sliding window's 107,911, and 100% on the other suites at fewer tokens per task overall than any baseline. Its retrieval precision (50%) is higher than vector RAG's because recall is gated on relevance.
 - **The ablations attribute the gains**: chunking alone accounts for `long-horizon`, the attention gate for in-session recall (14% with a recency-only gate), and activation for anything in a later session.
+- **Long-term memory beats vector RAG across sessions**: 100% against 91% overall and 80% on `dense-interference`, with higher retrieval precision (47% against 28%). The semantic store is what matters there: recalling episodes only drops `dense-interference` to 35%.
+- **Offline, two things can't be told apart**: Phase 3 working memory over the plain vector store also reaches 100%, and so does recall by embeddings alone, because the hashed embedder is itself lexical. Telling them apart needs a neural embedder and a live model.
 - **Full transcript** is exact until the conversation outgrows the model, then every request fails.
 - **Summary buffer** keeps about half of the in-session facts at fewer tokens than the alternatives, but has nothing to offer in a new session.
 - **Vector RAG** is the only baseline that remembers across sessions, and the strongest overall. Its retrieval precision is low (31%), so most recalled items are distractors. A real model is more likely to be misled by them than the simulated reader is. Phase 4 has to beat this on recall and interference.

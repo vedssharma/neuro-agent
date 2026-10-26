@@ -18,8 +18,10 @@ import {
   type RunResult,
 } from "@neuro-agent/core";
 import { summarizeTrace, type TraceSummary } from "@neuro-agent/eval";
-import { WorkingMemory } from "@neuro-agent/memory";
+import { LongTermMemory, WorkingMemory } from "@neuro-agent/memory";
+import { SqliteBackend } from "@neuro-agent/store-sqlite";
 import { evalCommand, replayCommand } from "./eval.js";
+import { defaultMemoryPath, memoryCommand } from "./memory.js";
 import {
   createProvider,
   DEFAULT_MODELS,
@@ -51,6 +53,7 @@ Usage:
   neuro trace <file.jsonl>     summarize a recorded session trace
   neuro replay <file.jsonl>    re-run a recorded session and check it matches
   neuro eval [options]         run the benchmark suites (neuro eval --help)
+  neuro memory <command>       inspect long-term memory (neuro memory --help)
 
 Options:
   -p, --provider <name>     ${PROVIDERS.join(" | ")} (default: anthropic)
@@ -62,6 +65,8 @@ Options:
       --full-transcript     send the whole transcript every turn instead
       --working-memory      compile each prompt from working memory (goal, focus, recent turns)
                             instead of a sliding window
+      --memory              working memory plus long-term memory that persists across sessions
+      --memory-db <file>    long-term memory database (default: <cwd>/.neuro/memory.db)
       --max-turns <n>       model calls per request (default: 25)
       --max-tokens <n>      output tokens per model call (default: 16000)
   -y, --yes                 approve every write and shell call without asking
@@ -85,6 +90,7 @@ export async function run(argv: string[], io: CliIO = defaultIO()): Promise<numb
 
   if (argv[0] === "eval") return evalCommand(argv.slice(1), io);
   if (argv[0] === "replay") return replayCommand(argv.slice(1), io);
+  if (argv[0] === "memory") return memoryCommand(argv.slice(1), io);
 
   let parsed;
   try {
@@ -100,6 +106,8 @@ export async function run(argv: string[], io: CliIO = defaultIO()): Promise<numb
         "context-tokens": { type: "string" },
         "full-transcript": { type: "boolean" },
         "working-memory": { type: "boolean" },
+        memory: { type: "boolean" },
+        "memory-db": { type: "string" },
         "max-turns": { type: "string" },
         "max-tokens": { type: "string" },
         yes: { type: "boolean", short: "y" },
@@ -178,11 +186,20 @@ export async function run(argv: string[], io: CliIO = defaultIO()): Promise<numb
       : {}),
   };
   const provider = (io.createProvider ?? createProvider)(providerName, providerOptions);
+  const memoryBackend =
+    opts.memory || opts["memory-db"]
+      ? new SqliteBackend({ path: resolve(cwd, opts["memory-db"] ?? defaultMemoryPath(cwd)) })
+      : undefined;
   const context: ContextStrategy = opts["full-transcript"]
     ? new FullTranscript()
-    : opts["working-memory"]
-      ? new WorkingMemory({ budgetTokens: contextTokens })
-      : new SlidingWindow(contextTokens);
+    : memoryBackend
+      ? new WorkingMemory({
+          budgetTokens: contextTokens,
+          longTerm: new LongTermMemory({ backend: memoryBackend }),
+        })
+      : opts["working-memory"]
+        ? new WorkingMemory({ budgetTokens: contextTokens })
+        : new SlidingWindow(contextTokens);
   const tools = builtinTools().filter((t) => !opts["read-only"] || t.permission === "read");
 
   const prompt = positionals.join(" ").trim();
@@ -296,6 +313,7 @@ export async function run(argv: string[], io: CliIO = defaultIO()): Promise<numb
     return 0;
   } finally {
     lines?.rl.close();
+    await memoryBackend?.close();
   }
 }
 

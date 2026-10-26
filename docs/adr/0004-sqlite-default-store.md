@@ -1,6 +1,6 @@
 # 0004. SQLite as the default store
 
-- Status: accepted (implementation lands in Phase 4)
+- Status: accepted (implemented in Phase 4 with `better-sqlite3`; see [ADR 0008](0008-episodic-and-semantic-memory.md))
 - Date: 2026-10-15
 
 ## Context

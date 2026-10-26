@@ -92,7 +92,7 @@ The neuroscience behind each decision is in [`docs/NEUROSCIENCE.md`](docs/NEUROS
 
 **Status:** `WorkingMemory` in `@neuro-agent/memory` compiles each prompt from a goal stack, an attention-gated focus region, an activated region recalled from earlier sessions, a sensory tail and a chunked current turn, with each mechanism behind a feature flag ([ADR 0007](docs/adr/0007-working-memory.md)). Offline it scores 100% on `long-horizon` at 48,766 tokens per task, against 0% at 107,911 for the sliding window and the summary buffer ([report](docs/evals/simulated-standard.md)). Open: confirming the result with a live model, and tuning the gate weights there.
 
-## Phase 4 — Long-term memory v1: episodic + semantic stores
+## Phase 4 — Long-term memory v1: episodic + semantic stores ✅ (done offline; live-model run pending)
 
 **Goal:** Two long-term stores with different speeds and write policies (Complementary Learning Systems).
 
@@ -103,6 +103,8 @@ The neuroscience behind each decision is in [`docs/NEUROSCIENCE.md`](docs/NEUROS
 - **Retrieval v1:** hybrid lexical + embedding + graph-neighborhood search, returning chunks into the activated region.
 
 **Exit criteria:** Cross-session recall evals pass; beats vanilla vector-RAG on recall and interference tests.
+
+**Status:** `LongTermMemory` in `@neuro-agent/memory` writes episodes and facts (with supersession and provenance) through a salience gate and recalls them with BM25, embeddings and the entity graph fused by rank. `@neuro-agent/store-sqlite` persists them in one SQLite file (FTS5), `neuro --memory` uses it, and `neuro memory` inspects and exports it ([ADR 0008](docs/adr/0008-episodic-and-semantic-memory.md)). Offline, it passes every cross-session suite and beats vector RAG overall (100% against 91%) and on dense interference (100% against 80%) ([report](docs/evals/simulated-standard.md)). Open: a live-model run with a neural embedder, and model-based fact extraction.
 
 ## Phase 5 — Cue-driven retrieval (pattern completion)
 

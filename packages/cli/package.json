@@ -20,6 +20,7 @@
     "@neuro-agent/eval": "workspace:*",
     "@neuro-agent/memory": "workspace:*",
     "@neuro-agent/providers": "workspace:*",
+    "@neuro-agent/store-sqlite": "workspace:*",
     "@neuro-agent/tools": "workspace:*"
   },
   "bin": {

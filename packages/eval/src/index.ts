@@ -12,6 +12,7 @@ export {
   EVAL_SYSTEM_PROMPT,
   gradeProbe,
   liveBaselines,
+  longTermStrategies,
   offlineBaselines,
   offlineStrategies,
   runBenchmark,

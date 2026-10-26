@@ -1,0 +1,25 @@
+{
+  "name": "@neuro-agent/store-sqlite",
+  "version": "0.0.0",
+  "description": "SQLite storage backend (FTS5) for neuro-agent long-term memory",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@neuro-agent/memory": "workspace:*",
+    "better-sqlite3": "^11.10.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0"
+  }
+}
